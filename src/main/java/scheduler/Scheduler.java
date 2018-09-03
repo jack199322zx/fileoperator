@@ -1,4 +1,4 @@
-package test2;
+package scheduler;
 
 import lombok.Data;
 

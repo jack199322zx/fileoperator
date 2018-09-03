@@ -1,12 +1,12 @@
-package test2;
+package operator;
 
 import com.google.common.collect.Lists;
-import demo.DownFileUtility;
 import lombok.Cleanup;
 import lombok.Getter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
+import scheduler.Scheduler;
+import model.Pos;
+import model.Printer;
 
 import java.io.*;
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.List;
  * @author ss
  * @date 2018/8/24 14:17
  */
-@Slf4j
+
 public abstract class AbstractFileOperator {
 
     protected File temp;
@@ -27,6 +27,10 @@ public abstract class AbstractFileOperator {
     protected int splitNum; // 分段数量
 
     public AbstractFileOperator(Scheduler scheduler) {
+        File file = new File(scheduler.getPath());
+        if (!file.exists()) {
+            if (!file.mkdirs()) Printer.warn("mkdirs failed");
+        }
         this.tempFileName = scheduler.getPath() + File.separator + scheduler.getFileName();
         this.temp = new File(tempFileName + tempSubFix);
         this.splitNum = scheduler.getSplitNum();
@@ -68,7 +72,7 @@ public abstract class AbstractFileOperator {
         List<Pos> posList = Lists.newArrayList();
         this.fileLength = getFileSize();
         if (fileLength == -1) {
-            log.info("can not connect to remote file!");
+            Printer.info("can not connect to remote file!");
             return null;
         }
         long splitPos = fileLength / splitNum;
@@ -112,7 +116,7 @@ public abstract class AbstractFileOperator {
                     e.printStackTrace();
                 }
             }
-//            DownFileUtility.log("file size is "+ saveInput.length());
+            Printer.info("file size is {}", saveInput.length());
         }catch(Exception e){
             e.printStackTrace();
         }

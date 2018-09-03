@@ -1,4 +1,8 @@
-package test2;
+package operator;
+
+import lombok.Getter;
+import operator.AbstractFileOperator;
+import scheduler.Scheduler;
 
 import java.io.File;
 
@@ -8,16 +12,18 @@ import java.io.File;
  */
 public class LocalOperator extends AbstractFileOperator {
 
-    private File downFile;
+    @Getter
+    private File target;
 
     public LocalOperator(Scheduler scheduler) {
         super(scheduler);
-        this.downFile = scheduler.getDownFile();
+        this.target = scheduler.getDownFile();
     }
 
     @Override
     protected long getFileSize() {
-        File localFile = this.downFile;
+        File localFile = this.target;
         return localFile.length();
     }
+
 }

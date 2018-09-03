@@ -1,82 +1,41 @@
-package test2;
+package engine;
 
-import demo.DownFileSplitterFetch;
-import demo.DownFileUtility;
 import lombok.*;
-import lombok.extern.slf4j.Slf4j;
+import scheduler.Scheduler;
+import model.Pos;
+import model.Printer;
+import task.Task;
+import operator.UrlOperator;
 
-import java.io.DataOutputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author ss
  * @date 2018/8/24 13:59
  */
-@Slf4j
-public class UrlEngine implements Engine {
+public class UrlEngine extends AbstractEngine implements Engine {
 
-    private List<Pos> posList = new ArrayList<>();
-    private boolean stop = false; // 停止标志
-    private boolean firstRead = true;
     private Scheduler scheduler;
-    private AbstractFileOperator fileOperator;
-    private Queue<UrlTask> queue = new LinkedBlockingDeque<>();
 
     public UrlEngine(@NonNull Scheduler scheduler) {
+        super(new UrlOperator(scheduler));
         this.scheduler = scheduler;
-        this.fileOperator = new UrlOperator(scheduler);
     }
 
     @Override
-    public void begin() {
-        try {
-            if (fileOperator.ifExistTempFile()) {
-                this.posList = fileOperator.readPos();
-                this.firstRead = false;
-            } else this.posList = fileOperator.initPosWhenFirstRead();
-
-            // 启动子线程
-            for (int i = 0; i < fileOperator.getSplitNum(); i++) {
-                UrlTask t = new UrlTask(scheduler, this.posList.get(i), i);
-                queue.offer(t);
-                t.start();
-            }
-            // 下载子线程是否完成标志
-            boolean breakWhile;
-            while (!stop) {
-                fileOperator.writePos(posList);
-                TimeUnit.MILLISECONDS.sleep(500);
-                breakWhile = true;
-                int size = queue.size();
-                while (size-- > 0) {
-                    if (queue.poll().isOver()) {
-                        breakWhile = false;
-                        break;
-                    }else{
-                        fileOperator.writePos(posList);
-                    }
-                }
-                if (breakWhile){
-                    break;
-                }
-            }
-            fileOperator.mergeFile();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return;
+    protected void startEngine() {
+        // 启动子线程
+        for (int i = 0; i < fileOperator.getSplitNum(); i++) {
+            UrlTask t = new UrlTask(scheduler, this.posList.get(i), i);
+            queue.offer(t);
+            t.start();
         }
     }
 
-    class UrlTask extends Thread implements Task{
+    class UrlTask extends Thread implements Task {
 
         private String url; // 下载文件的地址
         @Getter
@@ -88,6 +47,7 @@ public class UrlEngine implements Engine {
         private File currentTempFile;
         @Getter
         private boolean over; // 是否下载完成
+        private boolean running; // 是否正在下载
         private boolean stop; // 停止下载
 
         @SneakyThrows
@@ -102,8 +62,6 @@ public class UrlEngine implements Engine {
 
         @Override
         public void run() {
-//            DownFileUtility.log("Thread " + nThreadID + " url down filesize is "+(nEndPos-nStartPos));
-//            DownFileUtility.log("Thread " + nThreadID + " url start >> "+nStartPos +"------end >> "+nEndPos);
             checkFirstRead();
             download();
         }
@@ -111,13 +69,13 @@ public class UrlEngine implements Engine {
         @Override
         public void download() {
             while (start < end && !stop) {
+                running = true;
                 try {
                     URL url = new URL(this.url);
                     HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
                     httpConnection.setRequestProperty("User-Agent", "NetFox");
                     String sProperty = "bytes=" + start + "-";
                     httpConnection.setRequestProperty("RANGE", sProperty);
-//                    DownFileUtility.log(sProperty);
                     @Cleanup val input = httpConnection.getInputStream();
                     byte[] b = new byte[1024];
                     int nRead;
@@ -128,9 +86,9 @@ public class UrlEngine implements Engine {
                         accessFile.write(b, 0, nRead);
                         start += nRead;
                     }
-//                    DownFileUtility.log("Thread " + nThreadID + " nStartPos : "+nStartPos);
+                    Printer.info("Thread:{} is running, startPos is {}", threadId, start);
                     accessFile.close();
-//                    DownFileUtility.log("Thread " + nThreadID + " is over!");
+                    Printer.info("Thread:{} is over", threadId);
                     over = true;
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -139,6 +97,7 @@ public class UrlEngine implements Engine {
             if(!over){
                 if(start >= end){
                     over = true;
+                    running = false;
                 }
             }
         }
@@ -149,5 +108,16 @@ public class UrlEngine implements Engine {
                 accessFile.seek(currentTempFile.length());
             }
         }
+
+        @Override
+        public boolean isRunning() {
+            return this.running;
+        }
+
+        @Override
+        public boolean isOver() {
+            return this.over;
+        }
+
     }
 }

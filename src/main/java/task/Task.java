@@ -1,4 +1,4 @@
-package test2;
+package task;
 
 /**
  * @author ss
@@ -6,4 +6,6 @@ package test2;
  */
 public interface Task {
     void download();
+    boolean isOver();
+    boolean isRunning();
 }

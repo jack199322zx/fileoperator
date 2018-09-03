@@ -1,4 +1,9 @@
-package test2;
+package factory;
+
+import engine.Engine;
+import engine.LocalEngine;
+import engine.UrlEngine;
+import scheduler.Scheduler;
 
 /**
  * @author ss
@@ -12,6 +17,6 @@ public class EngineFactory {
         } else if (Scheduler.DownloadType.URL == scheduler.getDownloadType()) {
             return new UrlEngine(scheduler);
         }
-        return null;
+        return new UrlEngine(scheduler);
     }
 }

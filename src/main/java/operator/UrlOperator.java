@@ -1,6 +1,8 @@
-package test2;
+package operator;
 
 import lombok.SneakyThrows;
+import scheduler.Scheduler;
+import model.Printer;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -34,7 +36,7 @@ public class UrlOperator extends AbstractFileOperator {
     }
 
     private void processErrorCode(int repCode) {
-
+        Printer.info("repCode is {}", repCode);
     }
 
 }
